@@ -1,0 +1,7 @@
+path: ./data            # 이미지/라벨들이 있는 루트
+train: images/train     # path 기준 상대경로
+val: images/val
+
+# 클래스 개수 & 이름
+nc:                 
+names: 
