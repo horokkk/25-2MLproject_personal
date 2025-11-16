@@ -33,7 +33,7 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch):
         optimizer.step()
 
         total_loss += loss.item()
-        break # 한 배치만 디버깅용으로 처리
+        # break # 한 배치만 디버깅용으로 처리
     
     avg_loss = total_loss / len(dataloader)
     print(f"[DETR-Lite] [Epoch {epoch}] loss = {avg_loss:.4f}")
