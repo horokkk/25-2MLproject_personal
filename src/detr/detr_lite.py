@@ -14,7 +14,7 @@ def box_cxcywh_to_xyxy(boxes):
     return torch.stack([x1, y1, x2, y2], dim=-1)
 
 def box_xyxy_to_cxcywh(boxes):
-    x1, y1, x2, y2 = boxes.unbinde(-1)
+    x1, y1, x2, y2 = boxes.unbind(-1)
     w = x2 - x1
     h = y2 - y1
     cx = x1 + 0.5 * w
@@ -56,10 +56,7 @@ class DETRLite(nn.Module):
     - head: class + box
     - loss: greedy IoU matching + CE + L1
     """
-    def __init__(self,
-                 num_classes: int,
-                 num_queries: int = 100,
-                 hidden_dim: int = 256):
+    def __init__(self, num_classes: int, num_queries: int = 100, hidden_dim: int = 256):
         super().__init__()
         self.num_classes = num_classes  # 실제 클래스 개수
         self.num_queries = num_queries
@@ -69,7 +66,9 @@ class DETRLite(nn.Module):
         # 1) Backbone: ResNet-50 마지막 conv layer까지 사용 (Backbone + 1x1 conv로 transforemr에 넣을 feature 차원(hidden_dim) 맞추기))
         backbone = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
         self.backbone = nn.Sequential(*list(backbone.children())[:-2])  # [B,2048,Hf,Wf]
-        self.conv.proj = nn.Conv2d(2048, hidden_dim, kernel_size=1)  # [B,hidden_dim,Hf,Wf]
+        self.conv_proj = nn.Conv2d(2048, hidden_dim, kernel_size=1)  # [B,hidden_dim,Hf,Wf]
+
+        nn.init.xavier_uniform_(self.conv_proj.weight, gain=1.0)
 
         # 2) Positional embedding (row/col embedding) / DETR 논문은 sine-cosine 기반 -> 학습 가능한 2D 위치 임베딩으로 단순화
         self.row_embed = nn.Embedding(50, hidden_dim // 2)
@@ -91,7 +90,7 @@ class DETRLite(nn.Module):
         self.class_head = nn.Linear(hidden_dim, num_classes + 1)  # +1 for background
         self.box_head = nn.Linear(hidden_dim, 4)  # (cx,cy,w,h) 0~1 범위
 
-        nn.init.xavier_uniform_(self.conv.proj.weight, gain=1.0)
+        nn.init.xavier_uniform_(self.conv_proj.weight, gain=1.0)
 
     def _positional_encoding(self, H: int, W: int, device):
         i = torch.arange(W, device=device)
@@ -113,7 +112,7 @@ class DETRLite(nn.Module):
 
         # Backbone+projection+positional encoding
         feats = self.backbone(x) # [B,2048,Hf,Wf]
-        feats = self.conv.proj(feats)  # [B,C, Hf,Wf]
+        feats = self.conv_proj(feats)  # [B,C, Hf,Wf]
         B, C, Hf, Wf = feats.shape
 
         pos = self._positional_encoding(Hf, Wf, device)  # [C,Hf,Wf]
@@ -132,14 +131,14 @@ class DETRLite(nn.Module):
         tgt = tgt.unsqueeze(1).repeat(1, B, 1)  # [Q, B, C]
         query_embed = query_embed.unsqueeze(1).repeat(1, B, 1)  # [Q, B, C]
 
-        hs = self.decoder(tgt, memory, query_pos=query_embed)  # [Q, B, C]
+        hs = self.decoder(tgt + query_embed, memory)  # [Q, B, C]
         hs = hs.transpose(0, 1) # [B, Q, C] 각 object query에 해당하는 최종 표현
 
         # Head로 class, box 예측
         pred_logits = self.class_head(hs) #[B, Q, num_classes+1]
         pred_boxes = self.box_head(hs).sigmoid()  # [B, Q, 4] (cx,cy,w,h) 0~1 기준
 
-        if targets in None:
+        if targets is None:
             return self._postprocess(pred_logits, pred_boxes, images)
 
         loss_dict = self._loss(pred_logits, pred_boxes, targets)
@@ -210,7 +209,7 @@ class DETRLite(nn.Module):
 
     def _postprocess(self, pred_logits, pred_boxes, images):
         outputs = []
-        probs = pred_logits # [B, Q, C+1]
+        probs = F.softmax(pred_logits, dim=-1) # [B, Q, C+1]
         scores, labels = probs[..., :-1].max(-1) # background 제외
         
         B, Q, _ = pred_boxes.shape
@@ -222,8 +221,8 @@ class DETRLite(nn.Module):
             boxes_xyxy = box_cxcywh_to_xyxy(boxes_cxcywh)  # [Q,4] xyxy, 0~1
 
             # image 크기 곱해서 픽셀 좌표로 되돌리기
-            box_xyxy[..., 0::2] *= W
-            box_xyxy[..., 1::2] *= H
+            boxes_xyxy[..., 0::2] *= W
+            boxes_xyxy[..., 1::2] *= H
 
             outputs.append({
                 "boxes": boxes_xyxy,
