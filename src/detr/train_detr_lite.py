@@ -14,19 +14,19 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch):
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         # 디버깅용 print
-        print(f"[DEBUG] batch {batch_idx}")
-        print(f"[DEBUG] images: {len(images)}, targets: {len(targets)}")
-        print(f"[DEBUG] targets[0]: {targets[0]}")
+        # print(f"[DEBUG] batch {batch_idx}")
+        # print(f"[DEBUG] images: {len(images)}, targets: {len(targets)}")
+        # print(f"[DEBUG] targets[0]: {targets[0]}")
 
         loss_dict = model(images, targets)
 
         # 디버깅용 print
-        print("[DEBUG] loss_dict =", loss_dict)
+        # print("[DEBUG] loss_dict =", loss_dict)
 
         loss = sum(loss_dict.values())
 
         # 디버깅용 print
-        print("[DEBUG] total loss =", loss)
+        # print("[DEBUG] total loss =", loss)
 
         optimizer.zero_grad()
         loss.backward()
@@ -46,7 +46,7 @@ def main():
 
     num_classes = 7  # {'id': 0, 'name': '유충_정상'},{'id': 1, 'name': '유충_응애'},{'id': 2, 'name': '유충_석고병'},{'id': 3, 'name': '유충_부저병'},{'id': 4, 'name': '성충_정상'},{'id': 5, 'name': '성충_응애'},{'id': 6, 'name': '성충_날개불구바이러스감염증'}
     batch_size = 2
-    num_epochs = 1 # 일단 베이스라인용
+    num_epochs = 5 
     lr = 1e-4
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
