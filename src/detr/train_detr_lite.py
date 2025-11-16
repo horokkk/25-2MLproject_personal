@@ -45,7 +45,7 @@ def main():
     train_label_dir = os.path.join("data", "labels", "train")
 
     num_classes = 7  # {'id': 0, 'name': '유충_정상'},{'id': 1, 'name': '유충_응애'},{'id': 2, 'name': '유충_석고병'},{'id': 3, 'name': '유충_부저병'},{'id': 4, 'name': '성충_정상'},{'id': 5, 'name': '성충_응애'},{'id': 6, 'name': '성충_날개불구바이러스감염증'}
-    batch_size = 2
+    batch_size = 8  # T4-2 # A100 8
     num_epochs = 5 
     lr = 1e-4
 
