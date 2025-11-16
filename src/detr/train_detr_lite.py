@@ -1,6 +1,6 @@
 import os
 import torch
-from torch.utils.dataset import DataLoader
+from torch.utils.data import DataLoader
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
 from detr_lite import DETRLite
