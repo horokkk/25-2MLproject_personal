@@ -1,6 +1,7 @@
 import os
 import torch
 from torch.utils.data import DataLoader
+import time
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
 from detr_lite import DETRLite
@@ -74,6 +75,15 @@ def main():
     os.makedirs("checkpoints", exist_ok=True)
     best_mAP = 0.0
 
+    epoch_times = []  # 에포크별 시간 기록용
+
+    total_start = time.time()
+
+    for epoch in range(1, num_epochs + 1):
+        epoch_start = time.time()
+
+        train_loss = train_one_epoch(model, train_loader, optimizer, device, epoch)
+
     for epoch in range(1, num_epochs + 1):
         train_loss = train_one_epoch(model, train_dataloader, optimizer, device, epoch)
         
@@ -85,17 +95,22 @@ def main():
         current_mAP = metrics['mAP']
         print(f"[Validation Result] Epoch {epoch}: mAP = {current_mAP:.4f}")
         
-        # 최고 성능 모델 저장
+        # best 모델 저장
         if current_mAP > best_mAP:
             best_mAP = current_mAP
-            save_path = f"checkpoints/detr_lite_best_mAP_{best_mAP:.4f}.pth"
-            torch.save(model.state_dict(), save_path)
-            print(f"*** NEW BEST MODEL SAVED: {save_path} ***")
+            path = f"checkpoints_lite/detr_lite_best_mAP_{best_mAP:.4f}.pth"
         else:
-             # mAP가 최고 기록을 갱신하지 못해도 현재 Epoch 모델을 저장할 경우
-             torch.save(model.state_dict(), f"checkpoints/detr_lite_epoch{epoch}.pth")
+            path = f"checkpoints_lite/detr_lite_epoch{epoch}.pth"
+        torch.save(model.state_dict(), path)
 
+        epoch_time = time.time() - epoch_start
+        epoch_times.append(epoch_time)
+        print(f"[DETR-Lite] Epoch {epoch} time: {epoch_time:.2f} sec ({epoch_time/60:.2f} min)")
         print("-" * 40)
+
+    total_time = time.time() - total_start
+    print(f"[DETR-Lite] Total training time: {total_time/60:.2f} min")
+    print("Epoch times (sec):", [round(t, 2) for t in epoch_times])
 
 if __name__ == "__main__":
     main()
