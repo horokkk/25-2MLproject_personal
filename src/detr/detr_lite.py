@@ -66,26 +66,28 @@ class DETRLite(nn.Module):
         self.hidden_dim = hidden_dim
         self.background_idx = num_classes  # 마지막 로짓을 background로 사용
 
-        # 1) Backbone: ResNet-50 마지막 conv layer까지 사용
+        # 1) Backbone: ResNet-50 마지막 conv layer까지 사용 (Backbone + 1x1 conv로 transforemr에 넣을 feature 차원(hidden_dim) 맞추기))
         backbone = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
         self.backbone = nn.Sequential(*list(backbone.children())[:-2])  # [B,2048,Hf,Wf]
         self.conv.proj = nn.Conv2d(2048, hidden_dim, kernel_size=1)  # [B,hidden_dim,Hf,Wf]
 
-        # 2) Positional embedding (learnable row/col)
+        # 2) Positional embedding (row/col embedding) / DETR 논문은 sine-cosine 기반 -> 학습 가능한 2D 위치 임베딩으로 단순화
         self.row_embed = nn.Embedding(50, hidden_dim // 2)
         self.col_embed = nn.Embedding(50, hidden_dim // 2)
 
-        # 3) Transformer encoder / decoder
+        # 3) Transformer encoder / decoder 
+        # CNN에서 flatten한 feature sequence를 입력으로 받아 context-aware한 feature로 변환
         enc_layer = nn.TransformerEncoderLayer(d_model=hidden_dim, nhead=8, dim_feedforward=hidden_dim*4, batch_first=False)
         self.encoder = nn.TransformerEncoder(enc_layer, num_layers=3)
-        
+
+        # object query들을 넣어서 각 물체에 해당하는 표현으로 바꿔줌
         dec_layer = nn.TransformerDecoderLayer(d_model=hidden_dim, nhead=8, dim_feedforward=hidden_dim*4, batch_first=False)
         self.decoder = nn.TransformerDecoder(dec_layer, num_layers=3)
 
-        # 4) Object queries
+        # 4) Object queries (학습가능한 임베딩)
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
 
-        # 5) Prediction heads
+        # 5) Prediction heads (Head(class, box))
         self.class_head = nn.Linear(hidden_dim, num_classes + 1)  # +1 for background
         self.box_head = nn.Linear(hidden_dim, 4)  # (cx,cy,w,h) 0~1 범위
 
@@ -103,10 +105,13 @@ class DETRLite(nn.Module):
         ], dim=-1)  # [H, W, C]
         return pos.permute(2, 0, 1)  # [C, H, W]
     
+    # backbone -> transformer -> head
+    # targets 있으면 loss_dict, 없으면 postprocess된 결과 리턴
     def forward(self, images: List[torch.Tensor], targets=None):
         device = images[0].device
         x = torch.stack(images, dim=0)  # [B,3,H,W], H=W=512 가정
 
+        # Backbone+projection+positional encoding
         feats = self.backbone(x) # [B,2048,Hf,Wf]
         feats = self.conv.proj(feats)  # [B,C, Hf,Wf]
         B, C, Hf, Wf = feats.shape
@@ -114,20 +119,23 @@ class DETRLite(nn.Module):
         pos = self._positional_encoding(Hf, Wf, device)  # [C,Hf,Wf]
         feats = feats + pos.unsqueeze(0)  # [B,C,Hf,Wf]
 
-        # [B, C, Hf, Wf] -> [HW, B, C]
+        # Transformer 입력 형태로 바꾸기
+        # [B, C, Hf * Wf] -> [HW * Wf, B, C]
         src = feats.flatten(2).permute(2, 0, 1)
 
         memory = self.encoder(src)  # [HW, B, C]
 
-        #queries: [num_queries, B, C]
+        # Decoder (query 활용)
+        # queries: [num_queries, B, C]
         query_embed = self.query_embed.weight #[Q, C]
         tgt = torch.zeros_like(query_embed) # [Q, C]
         tgt = tgt.unsqueeze(1).repeat(1, B, 1)  # [Q, B, C]
         query_embed = query_embed.unsqueeze(1).repeat(1, B, 1)  # [Q, B, C]
 
-        hs = self.decodder(tgt, memory, query_pos=query_embed)  # [Q, B, C]
-        hs = hs.transpose(0, 1) # [B, Q, C]
+        hs = self.decoder(tgt, memory, query_pos=query_embed)  # [Q, B, C]
+        hs = hs.transpose(0, 1) # [B, Q, C] 각 object query에 해당하는 최종 표현
 
+        # Head로 class, box 예측
         pred_logits = self.class_head(hs) #[B, Q, num_classes+1]
         pred_boxes = self.box_head(hs).sigmoid()  # [B, Q, 4] (cx,cy,w,h) 0~1 기준
 
@@ -139,6 +147,7 @@ class DETRLite(nn.Module):
     
     # ----------------- Loss ------------------
 
+    # 간단 IoU 매칭 + CE + L1
     def _loss(self, pred_logits, pred_boxes, targets):
         """
         간단 버전:
@@ -156,7 +165,7 @@ class DETRLite(nn.Module):
     num_pos = 0
 
     for b in range(B):
-        gt_boxes = targets[b]["boxes"] # [G, 4] in pixel (0~512)
+        gt_boxes = targets[b]["boxes"] # [G,4] xyxy, 512 기준
         gt_labels = targets[b]["labels"]  # [G], 0~num_classes-1
         G = gt_boxes.size(0)
 
@@ -198,6 +207,7 @@ class DETRLite(nn.Module):
         }
 
     # ---------------- Inference -----------------
+
     def _postprocess(self, pred_logits, pred_boxes, images):
         outputs = []
         probs = pred_logits # [B, Q, C+1]
@@ -206,10 +216,12 @@ class DETRLite(nn.Module):
         B, Q, _ = pred_boxes.shape
         for b in range(B):
             _, H, W = images[b].shape
+
+            # 마지막 클래스(배경) 제외하고, 진짜 클래스들 중 최대 확률/해당 클래스 id 찾기
             boxes_cxcywh = pred_boxes[b]  # [Q,4] cxcywh, 0~1
             boxes_xyxy = box_cxcywh_to_xyxy(boxes_cxcywh)  # [Q,4] xyxy, 0~1
 
-            # image 크기 반영
+            # image 크기 곱해서 픽셀 좌표로 되돌리기
             box_xyxy[..., 0::2] *= W
             box_xyxy[..., 1::2] *= H
 

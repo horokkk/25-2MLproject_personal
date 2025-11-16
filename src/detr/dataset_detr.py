@@ -84,6 +84,7 @@ class BeeDetrDataset(Dataset):
             "boxes": boxes,
             "labels": labels,
             "image_id": torch.tensor([idx]),
+            "size": torch.tensor([new_h, new_w]),
         }
         return img, target
 
