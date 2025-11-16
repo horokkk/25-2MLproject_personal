@@ -9,22 +9,23 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch):
     model.train()
     total_loss = 0.0
 
-    for images, targets in dataloader:
+    for batch_idx, (images, targets) in enumerate(dataloader):
         images = [img.to(device) for img in images]
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # 🔥 디버깅용 print
-        print(f"[DEBUG] batch {batch_idx} | num_images={len(images)} | num_targets={len(targets)}")
-        print(f"[DEBUG] targets[0]: {targets[0]}")  # 구조 확인
+        # 디버깅용 print
+        print(f"[DEBUG] batch {batch_idx}")
+        print(f"[DEBUG] images: {len(images)}, targets: {len(targets)}")
+        print(f"[DEBUG] targets[0]: {targets[0]}")
 
         loss_dict = model(images, targets)
 
-        # 🔥 디버깅용 print
+        # 디버깅용 print
         print("[DEBUG] loss_dict =", loss_dict)
 
         loss = sum(loss_dict.values())
 
-        # 🔥 디버깅용 print
+        # 디버깅용 print
         print("[DEBUG] total loss =", loss)
 
         optimizer.zero_grad()
