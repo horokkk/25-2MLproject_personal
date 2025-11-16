@@ -2,7 +2,7 @@ import os
 
 import torch
 from torch.utils.data import DataLoader
-from torchvision.models.detection import detr_resnet50
+from torchvision.models.detection.detr import detr_resnet50, Detr_ResNet50_Weights
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
 from eval_detr_lib import evaluate_model 
