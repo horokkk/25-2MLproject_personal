@@ -161,39 +161,39 @@ class DETRLite(nn.Module):
         # 1) classification target 초기화: 모두 background로
         target_classes = torch.full((B, Q), self.background_idx, dtype=torch.long, device=device)
 
-    loss_bbox = torch.tensor(0.0, device=device)
-    num_pos = 0
+        loss_bbox = torch.tensor(0.0, device=device)
+        num_pos = 0
 
-    for b in range(B):
-        gt_boxes = targets[b]["boxes"] # [G,4] xyxy, 512 기준
-        gt_labels = targets[b]["labels"]  # [G], 0~num_classes-1
-        G = gt_boxes.size(0)
+        for b in range(B):
+            gt_boxes = targets[b]["boxes"] # [G,4] xyxy, 512 기준
+            gt_labels = targets[b]["labels"]  # [G], 0~num_classes-1
+            G = gt_boxes.size(0)
 
-        if G == 0: # GT가 없는 이미지는 전부 backgrounnd 유지
-            continue
+            if G == 0: # GT가 없는 이미지는 전부 background 유지
+                continue
 
-        # GT box를 0~1로 정규화(이미지 크기 512x512 가정)
-        gt_boxes_norm = gt_boxes / 512.0 #[G,4] xyxy, 0~1
-        pred_boxes_xyxy = box_cxcywh_to_xyxy(pred_boxes[b])  # [Q,4] xyxy, 0~1
-        ious = box_iou(pred_boxes_xyxy, gt_boxes_norm)  # [Q,G]
+            # GT box를 0~1로 정규화(이미지 크기 512x512 가정)
+            gt_boxes_norm = gt_boxes / 512.0 #[G,4] xyxy, 0~1
+            pred_boxes_xyxy = box_cxcywh_to_xyxy(pred_boxes[b])  # [Q,4] xyxy, 0~1
+            ious = box_iou(pred_boxes_xyxy, gt_boxes_norm)  # [Q,G]
 
-        # 각 query별 best GT 매칭
-        max_iou, best_gt_idx = ious.max(dim=1)  # [Q]
+            # 각 query별 best GT 매칭
+            max_iou, best_gt_idx = ious.max(dim=1)  # [Q]
 
-        # IoU threshhold 이상인 query만 positive로 설정
-        iou_threshjold = 0.3
-        positive = max_iou > iou_threshold 
+            # IoU threshhold 이상인 query만 positive로 설정
+            iou_threshold = 0.3
+            positive = max_iou > iou_threshold 
 
-        if positive.any():
-            num_pos += positive.sum().item()
-            # class target 설정
-            target_classes[b, positive] = gt_labels[best_gt_idx[positive]]
+            if positive.any():
+                num_pos += positive.sum().item()
+                # class target 설정
+                target_classes[b, positive] = gt_labels[best_gt_idx[positive]]
 
-            # box target (cx, cy, w, h, 0~1)
-            matched_gt_boxes = gt_boxes_norm[best_gt_idx[positive]]  # [Np, 4] xyxy
-            gt_cxcywh = box_xyxy_to_cxcywh(matched_gt_boxes)  # [Np,4] cxcywh
-            pred_cxcywh = pred_boxes[b, positive]  # [Np,4] cxcywh
-            loss_bbox += F.l1_loss(pred_cxcywh, gt_cxcywh, reduction="sum")
+                # box target (cx, cy, w, h, 0~1)
+                matched_gt_boxes = gt_boxes_norm[best_gt_idx[positive]]  # [Np, 4] xyxy
+                gt_cxcywh = box_xyxy_to_cxcywh(matched_gt_boxes)  # [Np,4] cxcywh
+                pred_cxcywh = pred_boxes[b, positive]  # [Np,4] cxcywh
+                loss_bbox += F.l1_loss(pred_cxcywh, gt_cxcywh, reduction="sum")
 
         if num_pos > 0:
             loss_bbox /= num_pos
@@ -201,7 +201,7 @@ class DETRLite(nn.Module):
         # 2) classification loss
         loss_cls = F.cross_entropy(pred_logits.view(-1, self.num_classes + 1), target_classes.view(-1))
 
-        return{
+        return {
             "loss_cls": loss_cls,
             "loss_bbox": loss_bbox
         }
