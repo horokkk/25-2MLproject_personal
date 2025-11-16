@@ -52,7 +52,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = BeeDetrDataset(train_img_dir, train_label_dir)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0,collate_fn=detr_collate_fn)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4,collate_fn=detr_collate_fn) # 0->4로 수정
 
     model = DETRLite(num_classes=num_classes, num_queries=100)
     model.to(device)
