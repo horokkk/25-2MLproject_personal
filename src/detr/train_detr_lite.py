@@ -82,7 +82,7 @@ def main():
     for epoch in range(1, num_epochs + 1):
         epoch_start = time.time()
 
-        train_loss = train_one_epoch(model, train_loader, optimizer, device, epoch)
+        train_loss = train_one_epoch(model, train_dataloader, optimizer, device, epoch)
 
     for epoch in range(1, num_epochs + 1):
         train_loss = train_one_epoch(model, train_dataloader, optimizer, device, epoch)
