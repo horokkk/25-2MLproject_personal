@@ -1,6 +1,6 @@
 import os
 import torch
-from torch.utils.datset import DataLoader
+from torch.utils.dataset import DataLoader
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
 from detr_lite import DETRLite
@@ -31,7 +31,7 @@ def main():
     train_img_dir = os.path.join("data", "images", "train")
     train_label_dir = os.path.join("data", "labels", "train")
 
-    num_classes = 3  # 예: 벌, 꽃, 기타
+    num_classes = 7  # {'id': 0, 'name': '유충_정상'},{'id': 1, 'name': '유충_응애'},{'id': 2, 'name': '유충_석고병'},{'id': 3, 'name': '유충_부저병'},{'id': 4, 'name': '성충_정상'},{'id': 5, 'name': '성충_응애'},{'id': 6, 'name': '성충_날개불구바이러스감염증'}
     batch_size = 2
     num_epochs = 5
     lr = 1e-4
@@ -39,7 +39,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = BeeDetrDataset(train_img_dir, train_label_dir)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4,collate_fn=detr_collate_fn)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0,collate_fn=detr_collate_fn)
 
     model = DETRLite(num_classes=num_classes, num_queries=100)
     model.to(device)
