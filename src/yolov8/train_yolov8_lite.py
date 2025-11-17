@@ -68,25 +68,32 @@ def main():
 
     os.makedirs("checkpoints_yololite", exist_ok=True)
 
-    best_mAP = 0.0
+    train_losses = []
+    mAP50_list = []
     epoch_times = []
 
+    best_mAP = 0.0
     total_start = time.time()
 
-    # -------------------------
-    # Training Loop
-    # -------------------------
     for epoch in range(1, num_epochs + 1):
         epoch_start = time.time()
         model.train()
 
         total_loss = 0.0
-        for imgs, targets in train_loader:
+    
+    # -------------------------
+    # Training loop
+    # -------------------------
+        for step, (imgs, targets) in enumerate(train_loader, start=1):
             imgs = [img.to(device) for img in imgs]
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            targets = [
+                {k: (v.to(device) if torch.is_tensor(v) else v)
+                 for k, v in t.items()}
+                for t in targets
+            ]
 
             loss_dict = model(imgs, targets)
-            loss = sum(loss_dict.values())
+            loss = sum(loss_dict.values()) if isinstance(loss_dict, dict) else loss_dict
 
             optimizer.zero_grad()
             loss.backward()
@@ -94,17 +101,36 @@ def main():
 
             total_loss += loss.item()
 
+            # DETR처럼 100 step마다 출력
+            if step % 100 == 0:
+                avg_loss_so_far = total_loss / step
+                print(
+                    f"[YOLOv8-LITE][Epoch {epoch}]"
+                    f"[Step {step}/{len(train_loader)}] "
+                    f"avg loss = {avg_loss_so_far:.4f}"
+                )
+
         avg_loss = total_loss / len(train_loader)
-        print(f"[YOLOv8-LITE][Epoch {epoch}] Train Loss = {avg_loss:.4f}")
+        train_losses.append(avg_loss)
+        print(f"[YOLOv8-LITE][Epoch {epoch}] loss = {avg_loss:.4f}")
 
         # -------------------------
-        # Validation
+        # Validation (DETR 스타일)
         # -------------------------
-        print("→ Running validation...")
-        mAP50 = evaluate_yolov8_lite(model, val_loader, device)
+        print("--------------------------------------------------")
+        print(f"→ Starting Validation for Epoch {epoch}...")
+
+        model.eval()
+        with torch.no_grad():
+            mAP50 = evaluate_yolov8_lite(model, val_loader, device)
+
+        mAP50_list.append(mAP50)
+        print(f"[YOLOv8-LITE][Eval] mAP50 = {mAP50:.4f}")
         print(f"[YOLOv8-LITE][Epoch {epoch}] mAP50 = {mAP50:.4f}")
 
-        # save
+        # -------------------------
+        # Checkpoint 저장
+        # -------------------------
         if mAP50 > best_mAP:
             best_mAP = mAP50
             save_path = f"checkpoints_yololite/yolov8_lite_best_{mAP50:.4f}.pth"
@@ -113,18 +139,23 @@ def main():
 
         torch.save(model.state_dict(), save_path)
 
-        # epoch timing
+        # -------------------------
+        # Epoch 시간 출력
+        # -------------------------
         epoch_time = time.time() - epoch_start
         epoch_times.append(epoch_time)
         print(f"[YOLOv8-LITE] Epoch {epoch} time: {epoch_time:.2f}s "
-              f"({epoch_time/60:.2f} min)")
-        print("-----------------------------------------------------")
+            f"({epoch_time/60:.2f} min)")
+        print("--------------------------------------------------")
 
+    # -------------------------
+    # 전체 학습 시간
+    # -------------------------
     total_time = time.time() - total_start
     print(f"[YOLOv8-LITE] Total Training Time: {total_time/60:.2f} min")
     print("Per-epoch times:", [round(t, 2) for t in epoch_times])
 
 
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()
 
