@@ -1,14 +1,21 @@
 import os
 import glob
+from PIL import Image
 import torch
 from torch.utils.data import Dataset
-from PIL import Image
+import torchvision.transforms as T
 
 class BeeYoloDataset(Dataset):
     def __init__(self, img_dir, label_dir, transforms=None):
         self.img_paths = sorted(glob.glob(os.path.join(img_dir, '*.jpg')))
         self.label_dir = label_dir
         self.transforms = transforms
+
+        # 기본 transform: ToTensor (PIL → CxHxW float32, [0,1])
+        if transforms is None:
+            self.transforms = T.ToTensor()
+        else:
+            self.transforms = transforms
 
     def __len__(self):
         return len(self.img_paths)
@@ -20,6 +27,10 @@ class BeeYoloDataset(Dataset):
 
         img = Image.open(img_path).convert("RGB")
         img_w, img_h = img.size
+
+        # 이미지 Tensor로 변환
+        if self.transforms is not None:
+            img = self.transforms(img)   # 이제 img: torch.Tensor (3,H,W)
 
         boxes = []
         labels = []
