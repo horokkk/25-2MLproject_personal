@@ -145,7 +145,7 @@ def main():
         print("-" * 50)
         print(f"→ Starting Validation for Epoch {epoch}...")
 
-        metrics = evaluate_model(model, val_loader, device, num_classes)
+        metrics = evaluate_model(model, val_loader, processor, device)
         current_mAP = metrics["mAP"]
 
         print(f"[DETR-FB][Epoch {epoch}] mAP = {current_mAP:.4f}")
