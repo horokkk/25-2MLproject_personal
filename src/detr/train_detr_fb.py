@@ -5,14 +5,13 @@ from torch.utils.data import DataLoader
 from transformers import DetrForObjectDetection, DetrImageProcessor
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
-from dataset_hf_wrapper import UnnormalizeWrapper
 from eval_detr import evaluate_model
 
 
 # ---------------------------------------
 # Train 1 epoch
 # ---------------------------------------
-def train_one_epoch(model, dataloader, optimizer, processor, device, epoch):
+def train_one_epoch(model, dataloader, optimizer, device, epoch):
     model.train()
     total_loss = 0.0
     log_interval = 100
@@ -95,20 +94,23 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Dataset & loader
-    # 1) 기본 dataset(DETR-Lite, Yolo-Lite 공통)
-    base_train_dataset = BeeDetrDataset(train_img_dir, train_label_dir)
-    
-    # 2) Unnormalize wrapper 추가
-    train_dataset = UnnormalizeWrapper(base_train_dataset)
+    # 1) 그냥 BeeDetrDataset 바로 사용 (Normalize까지 다 되어 있음)
+    train_dataset = BeeDetrDataset(train_img_dir, train_label_dir)
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size,
-        shuffle=True, collate_fn=detr_collate_fn, num_workers=4
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=detr_collate_fn,
+        num_workers=4
     )
 
-    val_dataset = UnnormalizeWrapper(BeeDetrDataset(val_img_dir, val_label_dir))
+    val_dataset = BeeDetrDataset(val_img_dir, val_label_dir)
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size,
-        shuffle=False, collate_fn=detr_collate_fn, num_workers=4
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=detr_collate_fn,
+        num_workers=4
     )
 
     # ---------------------------------------
@@ -137,7 +139,7 @@ def main():
         epoch_start = time.time()
 
         # Train
-        train_loss = train_one_epoch(model, train_loader, optimizer, processor, device, epoch)
+        train_loss = train_one_epoch(model, train_loader, optimizer, device, epoch)
 
         # Validation (mAP)
         print("-" * 50)

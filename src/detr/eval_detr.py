@@ -44,7 +44,7 @@ def evaluate_model(
         # -----------------------------
         if fb_mode:
             # ---- Facebook DETR(HF) ----
-            pixel_values = torch.stack(images_dev)  # [B,3,H,W]
+            pixel_values = torch.stack(images).to(device)  # [B,3,H,W]
             outputs = model(pixel_values=pixel_values)
 
             logits = outputs.logits        # [B,Q,num_cls+1]
