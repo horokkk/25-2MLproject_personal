@@ -12,7 +12,7 @@ def evaluate_model(
     model,
     dataloader,
     device,
-    score_thresh: float = 0.5,
+    score_thresh: float = 0.5,               # 조정 필요 -> 0.1
     fb_mode: bool = False   # ★ DETR-Lite=False, FB DETR=True
 ) -> Dict[str, float]:
     """

@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from transformers import DetrForObjectDetection, DetrImageProcessor
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
+from dataset_hf_wrapper import UnnormalizeWrapper
 from eval_detr import evaluate_model
 
 
@@ -71,16 +72,20 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Dataset & loader
-    train_dataset = BeeDetrDataset(train_img_dir, train_label_dir)
+    # 1) 기본 dataset(DETR-Lite, Yolo-Lite 공통)
+    base_train_dataset = BeeDetrDataset(train_img_dir, train_label_dir)
+    
+    # 2) Unnormalize wrapper 추가
+    train_dataset = UnnormalizeWrapper(base_train_dataset)
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size,
-        shuffle=True, collate_fn=detr_collate_fn, num_workers=2
+        shuffle=True, collate_fn=detr_collate_fn, num_workers=4
     )
 
-    val_dataset = BeeDetrDataset(val_img_dir, val_label_dir)
+    val_dataset = UnnormalizeWrapper(BeeDetrDataset(val_img_dir, val_label_dir))
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size,
-        shuffle=False, collate_fn=detr_collate_fn, num_workers=2
+        shuffle=False, collate_fn=detr_collate_fn, num_workers=4
     )
 
     # ---------------------------------------
