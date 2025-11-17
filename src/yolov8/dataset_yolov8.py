@@ -21,7 +21,10 @@ class BeeYoloDataset(Dataset):
 
         # 기본 transform: PIL -> Tensor
         if transforms is None:
-            self.transforms = T.ToTensor()
+            self.transforms = T.Compose([
+                T.Resize((512, 512)),
+                T.ToTensor(),
+        ])
         else:
             self.transforms = transforms
 
@@ -52,23 +55,31 @@ class BeeYoloDataset(Dataset):
                 labels.append(int(cat_id))
                 boxes.append([float(x1), float(y1), float(x2), float(y2)])
 
-        # --- 3. transform 적용 (PIL 이미지만 ToTensor 통과) ---
-        if self.transforms is not None:
-            # 여기서 img는 항상 PIL.Image.Image 여야 함
-            img = self.transforms(img)   # -> torch.Tensor [C, H, W]
+        # 3) 이미지 변환 (리사이즈 + 텐서화)
+        img = self.transforms(img)          # -> [C, H, W]
+        _, new_h, new_w = img.shape        # 리사이즈 후 크기
 
-        # --- 4. target dict 구성 ---
+        # 4) bbox도 리사이즈된 크기에 맞게 스케일 조정
         if len(boxes) > 0:
             boxes_tensor = torch.tensor(boxes, dtype=torch.float32)
+
+            sx = new_w / orig_w            # 가로 스케일 비율
+            sy = new_h / orig_h            # 세로 스케일 비율
+
+            # x좌표(0,2)에 sx, y좌표(1,3)에 sy 곱해주기
+            boxes_tensor[:, [0, 2]] *= sx
+            boxes_tensor[:, [1, 3]] *= sy
+
             labels_tensor = torch.tensor(labels, dtype=torch.int64)
         else:
             boxes_tensor = torch.zeros((0, 4), dtype=torch.float32)
             labels_tensor = torch.zeros((0,), dtype=torch.int64)
 
         target = {
-            "boxes": boxes_tensor,
+            "boxes": boxes_tensor,                          # 리사이즈된 이미지 기준 xyxy
             "labels": labels_tensor,
-            "orig_size": torch.tensor([img_h, img_w], dtype=torch.int64),
+            "orig_size": torch.tensor([orig_h, orig_w]),    # 원본
+            "size": torch.tensor([new_h, new_w]),           # 리사이즈 후
             "image_id": torch.tensor([idx]),
         }
 
