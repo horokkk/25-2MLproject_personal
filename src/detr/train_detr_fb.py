@@ -64,8 +64,8 @@ def main():
     val_label_dir = os.path.join("data", "labels", "val")
 
     num_classes = 7  # 너 데이터 기준
-    batch_size = 4   # DETR은 메모리 크므로 batch=4 권장
-    num_epochs = 5
+    batch_size = 8   # DETR은 메모리 크므로 batch=4 권장
+    num_epochs = 10
     lr = 1e-5  # HF DETR 권장 learning rate
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
