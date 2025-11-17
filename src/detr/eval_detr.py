@@ -45,7 +45,11 @@ def evaluate_model(model, dataloader, device, score_thresh: float = 0.5) -> Dict
             })
 
         # 2) 모델 inference (targets=None → _postprocess 호출)
-        outputs = model(images, targets=None)
+        # outputs = model(images, targets=None)
+        try:
+            outputs = model(images, targets=None)   # DETR-Lite (우리 커스텀)   
+        except TypeError:
+            outputs = model(images)                 # FB-DETR (Hub 모델)
         # outputs: list of dicts {"boxes", "scores", "labels"}
 
         preds_tm = []
