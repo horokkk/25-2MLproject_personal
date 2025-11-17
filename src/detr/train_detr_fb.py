@@ -24,12 +24,38 @@ def train_one_epoch(model, dataloader, optimizer, processor, device, epoch):
         # 1) 그냥 스택해서 pixel_values로 사용
         pixel_values = torch.stack(images).to(device)  # [B, 3, 512, 512]
 
-        # 2) target 변환 (그대로)
+        # 2) target → HF 포맷으로 변환
         new_targets = []
         for t in targets:
+            boxes_xyxy = t["boxes"]           # [N,4], on CPU
+            h, w = t["size"].tolist()        # (H, W), 예: (512, 512)
+
+            if boxes_xyxy.numel() > 0:
+                # x1,y1,x2,y2 → cx,cy,w,h (픽셀 기준)
+                x1 = boxes_xyxy[:, 0]
+                y1 = boxes_xyxy[:, 1]
+                x2 = boxes_xyxy[:, 2]
+                y2 = boxes_xyxy[:, 3]
+
+                cx = (x1 + x2) / 2.0
+                cy = (y1 + y2) / 2.0
+                bw = (x2 - x1)
+                bh = (y2 - y1)
+
+                # 픽셀 → 0~1 정규화
+                cx = cx / w
+                cy = cy / h
+                bw = bw / w
+                bh = bh / h
+
+                boxes_cxcywh = torch.stack([cx, cy, bw, bh], dim=-1)
+            else:
+                # 박스 없는 이미지 방어
+                boxes_cxcywh = boxes_xyxy
+
             new_targets.append({
                 "class_labels": t["labels"].to(device),
-                "boxes": t["boxes"].to(device)
+                "boxes": boxes_cxcywh.to(device)
             })
 
         # 3) forward
