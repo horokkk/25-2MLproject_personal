@@ -1,5 +1,6 @@
 import os
 from ultralytics import YOLO
+from yolov8_lib_callback import CustomYoloCallback
 
 
 def main():
@@ -11,6 +12,8 @@ def main():
     # 가장 가벼운 모델부터: yolov8n (nano)
     # 필요하면 s/m/l/x로 바꿔가면서 실험
     model = YOLO("yolov8n.pt")  # COCO pretrained weight 사용
+
+    callbacks = [CustomYoloCallback()]
 
     # --- 학습 설정 ---
     results = model.train(
@@ -25,6 +28,7 @@ def main():
         name="bee_yolo_v8n",        # 하위 폴더 이름
         exist_ok=True,      # 동일 이름 실험 덮어쓰기 허용
         verbose=True,
+        callbacks=callbacks
     )
 
     # results 객체에 학습 로그/지표 경로 등이 들어있음
