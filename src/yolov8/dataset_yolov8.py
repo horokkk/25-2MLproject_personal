@@ -1,4 +1,5 @@
 import os
+import json
 from PIL import Image
 
 import torch
@@ -30,7 +31,7 @@ class BeeYoloDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.img_paths[idx]
         filename = os.path.splitext(os.path.basename(img_path))[0]
-        label_path = os.path.join(self.label_dir, filename + ".txt")
+        label_path = os.path.join(self.label_dir, filename + ".json")
 
         # --- 1. 이미지 로드 (항상 PIL) ---
         img = Image.open(img_path).convert("RGB")
@@ -41,18 +42,15 @@ class BeeYoloDataset(Dataset):
         labels = []
 
         if os.path.exists(label_path):
-            with open(label_path, "r") as f:
-                for line in f:
-                    cls, xc, yc, bw, bh = map(float, line.strip().split())
+            with open(label_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-                    # YOLO normalized -> pixel xyxy
-                    x1 = (xc - bw / 2) * img_w
-                    y1 = (yc - bh / 2) * img_h
-                    x2 = (xc + bw / 2) * img_w
-                    y2 = (yc + bh / 2) * img_h
+            for ann in data.get("annotations", []):
+                cat_id = ann["category_id"]
+                x1, y1, x2, y2 = ann["bbox"]  # 이미 픽셀 좌표의 xyxy
 
-                    labels.append(int(cls))
-                    boxes.append([x1, y1, x2, y2])
+                labels.append(int(cat_id))
+                boxes.append([float(x1), float(y1), float(x2), float(y2)])
 
         # --- 3. transform 적용 (PIL 이미지만 ToTensor 통과) ---
         if self.transforms is not None:
@@ -60,9 +58,16 @@ class BeeYoloDataset(Dataset):
             img = self.transforms(img)   # -> torch.Tensor [C, H, W]
 
         # --- 4. target dict 구성 ---
+        if len(boxes) > 0:
+            boxes_tensor = torch.tensor(boxes, dtype=torch.float32)
+            labels_tensor = torch.tensor(labels, dtype=torch.int64)
+        else:
+            boxes_tensor = torch.zeros((0, 4), dtype=torch.float32)
+            labels_tensor = torch.zeros((0,), dtype=torch.int64)
+
         target = {
-            "boxes": torch.tensor(boxes, dtype=torch.float32) if boxes else torch.zeros((0, 4), dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64) if labels else torch.zeros((0,), dtype=torch.int64),
+            "boxes": boxes_tensor,
+            "labels": labels_tensor,
             "orig_size": torch.tensor([img_h, img_w], dtype=torch.int64),
             "image_id": torch.tensor([idx]),
         }
@@ -76,9 +81,8 @@ def yolo_collate_fn(batch):
     imgs: list of Tensor(C,H,W)
     targets: list of dict
     """
-    imgs = [b[0] for b in batch]
-    targets = [b[1] for b in batch]
-    return imgs, targets
+    imgs, targets = list(zip(*batch))
+    return list(imgs), list(targets)
 
 
 
