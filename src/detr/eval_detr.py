@@ -1,5 +1,9 @@
 from typing import Dict, List, Any
 import torch
+import numpy as np
+if not hasattr(np, "float"):
+    np.float = float
+
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
