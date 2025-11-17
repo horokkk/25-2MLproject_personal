@@ -115,7 +115,7 @@ def main():
         print(f"[YOLOv8-LITE][Epoch {epoch}] loss = {avg_loss:.4f}")
 
         # -------------------------
-        # Validation (DETR 스타일)
+        # Validation (DETR 스타일이랑 비슷하게)
         # -------------------------
         print("--------------------------------------------------")
         print(f"→ Starting Validation for Epoch {epoch}...")
@@ -156,6 +156,6 @@ def main():
     print("Per-epoch times:", [round(t, 2) for t in epoch_times])
 
 
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()
 
