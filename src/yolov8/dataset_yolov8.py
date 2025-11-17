@@ -42,7 +42,7 @@ class BeeYoloDataset(Dataset):
         target = {
             "boxes": torch.tensor(boxes, dtype=torch.float32),   # pixel xyxy format
             "labels": torch.tensor(labels, dtype=torch.int64),
-            "orig_size": torch.tensor([h, w], dtype=torch.int64),
+            "orig_size": torch.tensor([img_h, img_w], dtype=torch.int64),
             "image_id": torch.tensor([idx]),
         }
 
