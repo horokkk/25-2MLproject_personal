@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from yolov8_lite import YoloV8Lite
-from dataset_yolo import BeeYoloDataset, yolo_collate_fn
+from dataset_yolov8 import BeeYoloDataset, yolo_collate_fn
 from eval_yolov8 import compute_ap50   # mAP 계산 함수 재사용
 
 
