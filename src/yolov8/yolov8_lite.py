@@ -27,21 +27,29 @@ class C2fBlock(nn.Module):
     """
     def __init__(self, in_c, out_c, n=1):
         super().__init__()
-        hidden = out_c // 2
-        self.cv1 = ConvBNAct(in_c, out_c, k=1, s=1, p=0)
-        self.cv2 = ConvBNAct(out_c, out_c, k=1, s=1, p=0)
+        hidden = out_c // 2  # base 채널 수
+
+        # 👉 1단계: in_c → 2 * hidden 채널
+        self.cv1 = ConvBNAct(in_c, 2 * hidden, k=1, s=1, p=0)
+
+        # 👉 n개의 작은 conv 블록 (입출력 hidden 채널)
         self.m = nn.ModuleList([ConvBNAct(hidden, hidden) for _ in range(n)])
 
+        # 👉 concat 후 채널 수: (2 + n) * hidden
+        #    그걸 최종 out_c로 줄이는 1x1 conv
+        self.cv2 = ConvBNAct((2 + n) * hidden, out_c, k=1, s=1, p=0)
+
     def forward(self, x):
-        x = self.cv1(x)
-        y1, y2 = torch.chunk(x, 2, dim=1)
+        x = self.cv1(x)               # [B, 2*hidden, H, W]
+        y1, y2 = torch.chunk(x, 2, dim=1)  # 각 [B, hidden, H, W]
+
         ys = [y1, y2]
         for m in self.m:
-            y2 = m(y2)
+            y2 = m(y2)                # 여전히 [B, hidden, H, W]
             ys.append(y2)
-        out = torch.cat(ys, dim=1)
-        # 채널 수를 다시 out_c로 맞춤
-        return self.cv2(out)
+
+        out = torch.cat(ys, dim=1)    # [B, (2+n)*hidden, H, W]
+        return self.cv2(out)          # [B, out_c, H, W]
 
 
 # --------- 유틸 함수들 ---------
