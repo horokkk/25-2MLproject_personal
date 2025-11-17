@@ -88,7 +88,7 @@ def main():
         # 2) 검증 + mAP
         print("-" * 40)
         print(f"-> Starting Validation for Epoch {epoch}...")
-        metrics = evaluate_model(model, val_dataloader, device, num_classes)
+        metrics = evaluate_model(model, val_dataloader, device)
         
         current_mAP = metrics['mAP']
         print(f"[Validation Result] Epoch {epoch}: mAP = {current_mAP:.4f}")
