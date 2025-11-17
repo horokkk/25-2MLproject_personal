@@ -15,19 +15,16 @@ from eval_detr import evaluate_model
 def train_one_epoch(model, dataloader, optimizer, processor, device, epoch):
     model.train()
     total_loss = 0.0
-    log_interval = 100  # every 100 steps
+    log_interval = 100
 
     for batch_idx, (images, targets) in enumerate(dataloader):
-        # images: [img1, img2, ...]
-        # targets: list of dict — {"boxes":[N,4], "labels":[N]}
+        # images: list of tensor [3, 512, 512]  (이미 Resize + Normalize 완료)
+        # targets: list of dict {"boxes": [N,4], "labels": [N]}
 
-        # 1) processor가 원하는 형태로 변환
-        pixel_values = processor(
-            images=[img for img in images],
-            return_tensors="pt"
-        )["pixel_values"].to(device)
+        # 1) 그냥 스택해서 pixel_values로 사용
+        pixel_values = torch.stack(images).to(device)  # [B, 3, 512, 512]
 
-        # 2) target 변환 (HF DETR은 COCO format 요구)
+        # 2) target 변환 (그대로)
         new_targets = []
         for t in targets:
             new_targets.append({
