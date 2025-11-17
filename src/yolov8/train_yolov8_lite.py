@@ -45,7 +45,7 @@ def main():
 
     batch_size = 8
     num_classes = 7
-    num_epochs = 30
+    num_epochs = 10
 
     # -------------------------
     # Dataset
