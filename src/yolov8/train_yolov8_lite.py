@@ -92,7 +92,7 @@ def main():
                 for t in targets
             ]
 
-            if epoch == 2 and step <= 3:  # 앞의 몇 배치만 확인
+            if epoch == 1 and step <= 3:  # 앞의 몇 배치만 확인
                 print(f"[DEBUG] Epoch {epoch} Step {step}")
                 print("  num boxes per image:",
                       [t["boxes"].shape[0] for t in targets])
