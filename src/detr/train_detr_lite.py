@@ -72,7 +72,7 @@ def main():
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
-    os.makedirs("checkpoints", exist_ok=True)
+    os.makedirs("checkpoints_lite", exist_ok=True)
     best_mAP = 0.0
 
     epoch_times = []  # 에포크별 시간 기록용
@@ -82,12 +82,10 @@ def main():
     for epoch in range(1, num_epochs + 1):
         epoch_start = time.time()
 
+        # 1) 학습
         train_loss = train_one_epoch(model, train_dataloader, optimizer, device, epoch)
 
-    for epoch in range(1, num_epochs + 1):
-        train_loss = train_one_epoch(model, train_dataloader, optimizer, device, epoch)
-        
-        # 검증 및 mAP 계산
+        # 2) 검증 + mAP
         print("-" * 40)
         print(f"-> Starting Validation for Epoch {epoch}...")
         metrics = evaluate_model(model, val_dataloader, device, num_classes)
@@ -95,7 +93,7 @@ def main():
         current_mAP = metrics['mAP']
         print(f"[Validation Result] Epoch {epoch}: mAP = {current_mAP:.4f}")
         
-        # best 모델 저장
+        # 3) 체크포인트 저장
         if current_mAP > best_mAP:
             best_mAP = current_mAP
             path = f"checkpoints_lite/detr_lite_best_mAP_{best_mAP:.4f}.pth"
@@ -103,6 +101,7 @@ def main():
             path = f"checkpoints_lite/detr_lite_epoch{epoch}.pth"
         torch.save(model.state_dict(), path)
 
+        # 4) 에포크 시간 계산
         epoch_time = time.time() - epoch_start
         epoch_times.append(epoch_time)
         print(f"[DETR-Lite] Epoch {epoch} time: {epoch_time:.2f} sec ({epoch_time/60:.2f} min)")
