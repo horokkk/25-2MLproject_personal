@@ -38,7 +38,7 @@ class BeeYoloDataset(Dataset):
 
         # --- 1. 이미지 로드 (항상 PIL) ---
         img = Image.open(img_path).convert("RGB")
-        img_w, img_h = img.size
+        orig_w, orig_h = img.size
 
         # --- 2. 라벨 파싱 (YOLO txt: cls xc yc w h) ---
         boxes = []
