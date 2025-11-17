@@ -29,8 +29,8 @@ class BeeYoloDataset(Dataset):
         img_w, img_h = img.size
 
         # 이미지 Tensor로 변환
-        if self.transforms is not None:
-            img = self.transforms(img)   # 이제 img: torch.Tensor (3,H,W)
+        if self.transforms is not None and isinstance(img, Image.Image):
+            img = self.transforms(img)   # -> torch.Tensor (3,H,W)
 
         boxes = []
         labels = []
