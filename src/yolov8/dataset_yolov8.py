@@ -51,9 +51,9 @@ class BeeYoloDataset(Dataset):
 
         return img, target
     
-    def yolo_collate_fn(batch):
-        imgs, targets = zip(*batch)
-        return list(imgs), list(targets)
+def yolo_collate_fn(batch):
+    imgs, targets = zip(*batch)
+    return list(imgs), list(targets)
 
 
     
