@@ -92,6 +92,11 @@ def main():
                 for t in targets
             ]
 
+            if epoch == 2 and step <= 3:  # 앞의 몇 배치만 확인
+                print(f"[DEBUG] Epoch {epoch} Step {step}")
+                print("  num boxes per image:",
+                      [t["boxes"].shape[0] for t in targets])
+
             loss_dict = model(imgs, targets)
             loss = sum(loss_dict.values()) if isinstance(loss_dict, dict) else loss_dict
 
