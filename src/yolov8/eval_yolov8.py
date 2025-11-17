@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from typing import List, Dict
 from yolov8_lite import YoloV8Lite
-from dataset_yolo import BeeYoloDataset, yolo_collate_fn
+from dataset_yolov8 import BeeYoloDataset, yolo_collate_fn
 
 
 # -------------------------------
