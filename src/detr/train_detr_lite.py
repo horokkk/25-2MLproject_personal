@@ -5,7 +5,7 @@ import time
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
 from detr_lite import DETRLite
-from eval_detr import evaluate_model
+from src.detr.eval_detr_lite import evaluate_model
 
 def train_one_epoch(model, dataloader, optimizer, device, epoch):
     model.train()

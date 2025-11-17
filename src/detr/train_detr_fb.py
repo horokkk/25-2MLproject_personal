@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from transformers import DetrForObjectDetection, DetrImageProcessor
 
 from dataset_detr import BeeDetrDataset, detr_collate_fn
-from eval_detr import evaluate_model
+from src.detr.eval_detr_fb import evaluate_model
 
 
 # ---------------------------------------
